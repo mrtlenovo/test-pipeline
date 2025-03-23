@@ -1,0 +1,14 @@
+<project>
+    ...
+    <distributionManagement>
+        <repository>
+            <id>nexus-releases</id>
+            <url>http://nexus.cicd-prod.svc.cluster.local:8081/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>nexus-snapshots</id>
+            <url>http://nexus.cicd-prod.svc.cluster.local:8081/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
+    ...
+</project>
