@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        NEXUS_CREDENTIALS = credentials('nexus-creds-id')
-        SONARQUBE_SERVER = 'sonarqube-server'
+        NEXUS_CREDENTIALS = credentials('nexus-creds-id') // ID from Jenkins credentials
+        SONARQUBE_SERVER = 'SonarQube'  // Name of your SonarQube server from Jenkins system config
     }
 
     stages {
@@ -15,7 +15,7 @@ pipeline {
 
         stage('Code Quality Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
+                withSonarQubeEnv('SonarQube') {  // Using SonarQube integration
                     sh 'mvn clean verify sonar:sonar'
                 }
             }
@@ -23,21 +23,24 @@ pipeline {
 
         stage('Build and Package') {
             steps {
-                sh 'mvn clean package'
+                sh 'mvn clean package -DskipTests'  // Build your app (JAR or WAR)
             }
         }
 
         stage('Publish to Nexus') {
             steps {
-                sh '''
-                curl -v -u $NEXUS_CREDENTIALS -X PUT --upload-file target/your-app.jar \
-                http://nexus.cicd-prod.svc.cluster.local:8081/repository/maven-releases/your-app.jar
-                '''
+                // Deploy the generated JAR/WAR file to Nexus
+                sh """
+                mvn deploy -DskipTests \
+                    -Dnexus.username=${NEXUS_CREDENTIALS_USR} \
+                    -Dnexus.password=${NEXUS_CREDENTIALS_PSW}
+                """
             }
         }
 
         stage('Deploy to OpenShift') {
             steps {
+                // Deploy the artifact to your OpenShift cluster
                 sh 'oc project cicd-prod'
                 sh 'oc start-build your-app --from-file=target/your-app.jar --wait'
             }
@@ -46,8 +49,9 @@ pipeline {
 
     post {
         always {
-            junit '**/target/surefire-reports/*.xml'
+            // Archive the JAR file and publish test results
             archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+            junit '**/target/surefire-reports/*.xml'
         }
     }
 }
