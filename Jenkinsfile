@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        NEXUS_CREDENTIALS = credentials('nexus-creds-id') // ID from Jenkins credentials
+        NEXUS_CREDENTIALS = credentials('nexus-creds') // ID from Jenkins credentials
         SONARQUBE_SERVER = 'SonarQube'  // Name of your SonarQube server from Jenkins system config
     }
 
