@@ -2,13 +2,12 @@ pipeline {
     agent any
 
     tools {
-        maven 'maven'    // Replace 'maven' with the exact Maven installation name in Global Tool Configuration
-        jdk 'jdk11'      // Replace 'jdk11' with the correct JDK installation name in Jenkins
+        maven 'maven3'  // Update to the exact Maven name you configured in Global Tool Configuration
     }
 
     environment {
-        NEXUS_CREDENTIALS = credentials('nexus-creds')  // ID from Jenkins credentials
-        SONARQUBE_SERVER = 'SonarQube'                  // SonarQube server configuration in Jenkins
+        NEXUS_CREDENTIALS = credentials('nexus-creds') 
+        SONARQUBE_SERVER = 'SonarQube'  
     }
 
     stages {
@@ -20,7 +19,7 @@ pipeline {
 
         stage('Code Quality Analysis') {
             steps {
-                withSonarQubeEnv("${SONARQUBE_SERVER}") {  // SonarQube integration
+                withSonarQubeEnv('SonarQube') {
                     sh 'mvn clean verify sonar:sonar'
                 }
             }
@@ -28,13 +27,12 @@ pipeline {
 
         stage('Build and Package') {
             steps {
-                sh 'mvn clean package -DskipTests'  // Build application without running tests
+                sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('Publish to Nexus') {
             steps {
-                // Publish artifact to Nexus using credentials from Jenkins environment
                 sh """
                 mvn deploy -DskipTests \
                     -Dnexus.username=${NEXUS_CREDENTIALS_USR} \
@@ -45,7 +43,6 @@ pipeline {
 
         stage('Deploy to OpenShift') {
             steps {
-                // Switch to correct OpenShift project and trigger deployment
                 sh 'oc project cicd-prod'
                 sh 'oc start-build your-app --from-file=target/your-app.jar --wait'
             }
@@ -54,8 +51,8 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true  // Archive JAR file
-            junit '**/target/surefire-reports/*.xml'                          // Publish test results
+            archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+            junit '**/target/surefire-reports/*.xml'
         }
     }
 }
