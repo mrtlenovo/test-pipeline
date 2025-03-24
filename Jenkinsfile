@@ -2,15 +2,31 @@ pipeline {
     agent any
 
     tools {
-        maven 'maven3'  // Update to the exact Maven name you configured in Global Tool Configuration
+        maven 'maven3'  // Ensure this matches the exact Maven name you configured in Jenkins Global Tool Configuration
     }
 
     environment {
         NEXUS_CREDENTIALS = credentials('nexus-creds') 
         SONARQUBE_SERVER = 'SonarQube'  
+        JAVA_HOME = "/etc/pki/ca-trust/extracted/java"  // Java truststore path
+        CERT_PATH = "/var/lib/jenkins/sonarqube_cert.pem"  // Path to the SonarQube certificate
     }
 
     stages {
+        stage('Import SonarQube Certificate') {
+            steps {
+                script {
+                    echo "Importing SonarQube certificate into Java truststore..."
+                    sh '''
+                    keytool -import -trustcacerts -keystore $JAVA_HOME/cacerts \
+                            -storepass changeit -noprompt -alias sonarqube-cert \
+                            -file $CERT_PATH
+                    '''
+                    echo "Certificate import completed successfully."
+                }
+            }
+        }
+
         stage('Clone Repository') {
             steps {
                 git branch: 'main', url: 'https://github.com/mrtlenovo/test-pipeline.git'
