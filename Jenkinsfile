@@ -1,9 +1,14 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'maven'    // Replace 'maven' with the exact Maven installation name in Global Tool Configuration
+        jdk 'jdk11'      // Replace 'jdk11' with the correct JDK installation name in Jenkins
+    }
+
     environment {
-        NEXUS_CREDENTIALS = credentials('nexus-creds') // ID from Jenkins credentials
-        SONARQUBE_SERVER = 'SonarQube'  // Name of your SonarQube server from Jenkins system config
+        NEXUS_CREDENTIALS = credentials('nexus-creds')  // ID from Jenkins credentials
+        SONARQUBE_SERVER = 'SonarQube'                  // SonarQube server configuration in Jenkins
     }
 
     stages {
@@ -15,7 +20,7 @@ pipeline {
 
         stage('Code Quality Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {  // Using SonarQube integration
+                withSonarQubeEnv("${SONARQUBE_SERVER}") {  // SonarQube integration
                     sh 'mvn clean verify sonar:sonar'
                 }
             }
@@ -23,13 +28,13 @@ pipeline {
 
         stage('Build and Package') {
             steps {
-                sh 'mvn clean package -DskipTests'  // Build your app (JAR or WAR)
+                sh 'mvn clean package -DskipTests'  // Build application without running tests
             }
         }
 
         stage('Publish to Nexus') {
             steps {
-                // Deploy the generated JAR/WAR file to Nexus
+                // Publish artifact to Nexus using credentials from Jenkins environment
                 sh """
                 mvn deploy -DskipTests \
                     -Dnexus.username=${NEXUS_CREDENTIALS_USR} \
@@ -40,7 +45,7 @@ pipeline {
 
         stage('Deploy to OpenShift') {
             steps {
-                // Deploy the artifact to your OpenShift cluster
+                // Switch to correct OpenShift project and trigger deployment
                 sh 'oc project cicd-prod'
                 sh 'oc start-build your-app --from-file=target/your-app.jar --wait'
             }
@@ -49,9 +54,8 @@ pipeline {
 
     post {
         always {
-            // Archive the JAR file and publish test results
-            archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
-            junit '**/target/surefire-reports/*.xml'
+            archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true  // Archive JAR file
+            junit '**/target/surefire-reports/*.xml'                          // Publish test results
         }
     }
 }
