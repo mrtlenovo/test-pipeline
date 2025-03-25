@@ -6,8 +6,8 @@ pipeline {
     }
 
     environment {
-        NEXUS_CREDENTIALS = credentials('nexus-creds') 
-        SONARQUBE_SERVER = 'SonarQube'  
+        NEXUS_CREDENTIALS = credentials('nexus-creds')  // Credentials ID for Nexus
+        SONARQUBE_SERVER = 'SonarQube'  // SonarQube server name in Jenkins
         JAVA_HOME = "/etc/pki/ca-trust/extracted/java"  // Java truststore path
         CERT_PATH = "/var/lib/jenkins/sonarqube_cert.pem"  // Path to the SonarQube certificate
     }
@@ -18,7 +18,7 @@ pipeline {
                 script {
                     echo "Importing SonarQube certificate into Java truststore..."
                     sh '''
-                    keytool -import -trustcacerts -keystore $JAVA_HOME/cacerts \
+                    keytool -import -trustcacerts -keystore /var/lib/jenkins/jenkins-truststore.jks \
                             -storepass changeit -noprompt -alias sonarqube-cert \
                             -file $CERT_PATH
                     '''
@@ -35,15 +35,17 @@ pipeline {
 
         stage('Code Quality Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh 'mvn clean verify sonar:sonar'
+                withEnv(["JAVA_OPTS=-Djavax.net.ssl.trustStore=/var/lib/jenkins/jenkins-truststore.jks -Djavax.net.ssl.trustStorePassword=changeit"]) {
+                    withSonarQubeEnv('SonarQube') {  // SonarQube environment binding
+                        sh 'mvn clean verify sonar:sonar'
+                    }
                 }
             }
         }
 
         stage('Build and Package') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                sh 'mvn clean package -DskipTests'  // Build the project without running tests
             }
         }
 
@@ -59,16 +61,16 @@ pipeline {
 
         stage('Deploy to OpenShift') {
             steps {
-                sh 'oc project cicd-prod'
-                sh 'oc start-build your-app --from-file=target/your-app.jar --wait'
+                sh 'oc project cicd-prod'  // Switch to the OpenShift project namespace
+                sh 'oc start-build your-app --from-file=target/your-app.jar --wait'  // Start the OpenShift build with the packaged JAR
             }
         }
     }
 
     post {
         always {
-            archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
-            junit '**/target/surefire-reports/*.xml'
+            archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true  // Archive the built JAR file
+            junit '**/target/surefire-reports/*.xml'  // Publish JUnit test results
         }
     }
 }
